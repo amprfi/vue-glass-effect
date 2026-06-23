@@ -1,0 +1,41 @@
+{
+  "name": "@amprfi/vue-glass-effect",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vue 3 implementation of Figma-style glass using SVG filters, backdrop-filter, and generated displacement maps.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./style.css": "./dist/style.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && vue-tsc --declaration --emitDeclarationOnly --outDir dist",
+    "type-check": "vue-tsc --noEmit",
+    "prepare": "npm run build"
+  },
+  "peerDependencies": {
+    "vue": ">=3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.6",
+    "typescript": "~6.0.0",
+    "vite": "^8.0.8",
+    "vue": "^3.5.32",
+    "vue-tsc": "^3.2.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
