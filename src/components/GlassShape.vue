@@ -3,6 +3,7 @@ import { computed, getCurrentInstance, ref } from 'vue'
 
 import { useElementBox } from '../composables/useElementBox'
 import { useAlphaField } from '../composables/useAlphaField'
+import { useGlassData, type GlassDataInput } from '../composables/useGlassData'
 import GlassFilterSvg from './GlassFilterSvg.vue'
 import { DEFAULT_GLASS_PARAMS, DEFAULT_LIGHT_ANGLE, DEFAULT_SPLAY } from '../types'
 
@@ -48,7 +49,20 @@ const rootRef = ref<HTMLElement | null>(null)
 const box = useElementBox(rootRef, 0)
 const field = useAlphaField(props.src, box)
 
-const ready = computed(() => field.value !== null && box.value.width > 0 && box.value.height > 0)
+const input = computed<GlassDataInput>(() => ({
+  refraction: props.refraction,
+  depth: props.depth,
+  frost: props.frost,
+  lightIntensity: props.lightIntensity,
+  dispersion: props.dispersion,
+  splay: props.splay,
+  lightAngle: props.lightAngle,
+  overLight: props.overLight,
+  field: field.value,
+  borderRadius: 0,
+}))
+
+const data = useGlassData(box, input)
 
 const rootStyle = computed(() => {
   const size = typeof props.size === 'number' ? `${props.size}px` : props.size
@@ -57,9 +71,17 @@ const rootStyle = computed(() => {
     width: size,
     height: size,
     '--ampr-glass-filter': `url(#${filterId})`,
+    '--ampr-glass-frost': data.value.frostFilter,
     '--ampr-shape-mask': `url("${props.src}")`,
   }
 })
+
+const rimStyle = computed(() => ({
+  backgroundImage: `url("${data.value.specularUrl}")`,
+  opacity: data.value.rimOpacity,
+}))
+const shadowStyle = computed(() => ({ backgroundImage: `url("${data.value.shadowUrl}")` }))
+const highlightStyle = computed(() => ({ backgroundImage: `url("${data.value.highlightUrl}")` }))
 </script>
 
 <template>
@@ -72,20 +94,20 @@ const rootStyle = computed(() => {
     :aria-label="alt"
   >
     <GlassFilterSvg
-      v-if="ready"
-      :field="field"
+      v-if="data.ready"
       :filter-id="filterId"
       :width="box.width"
       :height="box.height"
-      :border-radius="0"
-      :refraction="refraction"
-      :depth="depth"
-      :frost="frost"
-      :light-intensity="lightIntensity"
-      :dispersion="dispersion"
-      :splay="splay"
-      :light-angle="lightAngle"
-      :over-light="overLight"
+      :displacement-url="data.displacementUrl"
+      :scale="data.scale"
+      :dispersion="data.dispersion"
     />
+
+    <div class="ampr-glass-layer ampr-glass-frost" />
+    <div class="ampr-glass-layer ampr-glass-refract" />
+    <div class="ampr-glass-layer ampr-glass-shape-tint" :class="{ 'ampr-glass-tint--over-light': overLight }" />
+    <div class="ampr-glass-layer ampr-glass-rim" :style="rimStyle" />
+    <div class="ampr-glass-layer ampr-glass-shadow" :style="shadowStyle" />
+    <div class="ampr-glass-layer ampr-glass-highlight" :style="highlightStyle" />
   </div>
 </template>

@@ -1,75 +1,37 @@
 :root {
   --ampr-glass-radius: 1rem;
   --ampr-glass-filter: blur(0px);
-}
-
-.ampr-glass-card {
-  position: relative;
-  z-index: 0;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: var(--ampr-glass-radius);
-  background: transparent;
-  transform: translateZ(0);
-}
-
-.ampr-glass-card::before,
-.ampr-glass-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.ampr-glass-card::before {
-  z-index: -1;
-  background-color: rgba(255, 255, 255, 0.06);
-  box-shadow:
-    inset -2px -2px 10px -2px rgba(255, 255, 255, 0.5),
-    inset 2px 2px 10px -2px rgba(0, 0, 0, 0.1);
-}
-
-.ampr-glass-card--over-light::before {
-  background-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset -2px -2px 10px -2px rgba(255, 255, 255, 0.65),
-    inset 2px 2px 10px -2px rgba(0, 0, 0, 0.12);
-}
-
-.ampr-glass-card::after {
-  z-index: -2;
-  backdrop-filter: var(--ampr-glass-filter);
-  -webkit-backdrop-filter: var(--ampr-glass-filter);
-}
-
-.ampr-glass-filter-svg {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .ampr-glass-card::after {
-    background: rgba(255, 255, 255, 0.14);
-  }
+  --ampr-glass-frost: blur(0px);
 }
 
 /*
- * Shaped glass (e.g. a logo glyph). The glass treatment (backdrop blur + tint + rim
- * light) is generated from an alpha distance field and then clipped to the source's
- * own alpha via a CSS mask, so the silhouette of the glass equals the silhouette of
- * the source SVG/image.
+ * Glass is decomposed into independent layers, each on its own element. This is what
+ * keeps the effect cross-browser robust: if one layer's value is unsupported by a
+ * browser (notably backdrop-filter: url() in Firefox/Safari), only that layer is
+ * dropped — the others keep rendering. Were frost and refraction to share a single
+ * backdrop-filter declaration, an invalid url() would invalidate the blur too.
+ *
+ *   frost     backdrop-filter: blur()        — universal
+ *   refract   backdrop-filter: url(#filter)  — Chromium only (refraction + dispersion)
+ *   tint      translucent fill + inset edge  — universal
+ *   rim/shadow/highlight  blended image maps — universal (edge light)
  */
+.ampr-glass-card,
 .ampr-glass-shape {
   position: relative;
-  display: inline-block;
   z-index: 0;
   isolation: isolate;
   background: transparent;
   transform: translateZ(0);
+}
+
+.ampr-glass-card {
+  overflow: hidden;
+  border-radius: var(--ampr-glass-radius);
+}
+
+.ampr-glass-shape {
+  display: inline-block;
   -webkit-mask-image: var(--ampr-shape-mask);
   mask-image: var(--ampr-shape-mask);
   -webkit-mask-size: contain;
@@ -80,37 +42,82 @@
   mask-position: center;
 }
 
-.ampr-glass-shape::before,
-.ampr-glass-shape::after {
-  content: '';
+.ampr-glass-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.ampr-glass-shape::before {
-  z-index: -1;
+/* Tier 1 — frost: universally supported backdrop blur. */
+.ampr-glass-frost {
+  z-index: -6;
+  backdrop-filter: var(--ampr-glass-frost);
+  -webkit-backdrop-filter: var(--ampr-glass-frost);
+}
+
+/* Tier 3 — refraction + dispersion via SVG filter. Chromium only; no-ops elsewhere. */
+.ampr-glass-refract {
+  z-index: -5;
+  backdrop-filter: var(--ampr-glass-filter);
+  -webkit-backdrop-filter: var(--ampr-glass-filter);
+}
+
+/* Tier 0 — tint + inset edge. */
+.ampr-glass-tint {
+  z-index: -4;
+  border-radius: inherit;
   background-color: rgba(255, 255, 255, 0.06);
   box-shadow:
     inset -2px -2px 10px -2px rgba(255, 255, 255, 0.5),
     inset 2px 2px 10px -2px rgba(0, 0, 0, 0.1);
 }
 
-.ampr-glass-shape--over-light::before {
+/* Shaped glass has no rectangular edge to shadow, so it only takes a faint veil. */
+.ampr-glass-shape-tint {
+  z-index: -4;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.ampr-glass-tint--over-light,
+.ampr-glass-shape-tint.ampr-glass-tint--over-light {
   background-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     inset -2px -2px 10px -2px rgba(255, 255, 255, 0.65),
     inset 2px 2px 10px -2px rgba(0, 0, 0, 0.12);
 }
 
-.ampr-glass-shape::after {
-  z-index: -2;
-  backdrop-filter: var(--ampr-glass-filter);
-  -webkit-backdrop-filter: var(--ampr-glass-filter);
+/* Tier 2 — edge light: generated maps blended as image overlays. Universal. */
+.ampr-glass-rim {
+  z-index: -3;
+  background-size: 100% 100%;
+  mix-blend-mode: screen;
 }
 
+.ampr-glass-shadow {
+  z-index: -2;
+  background-size: 100% 100%;
+  mix-blend-mode: multiply;
+  opacity: 0.16;
+}
+
+.ampr-glass-highlight {
+  z-index: -1;
+  background-size: 100% 100%;
+  mix-blend-mode: screen;
+  opacity: 0.22;
+}
+
+.ampr-glass-filter-svg {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Where backdrop-filter is unsupported at all, fall back to a flat translucent fill. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .ampr-glass-shape::after {
+  .ampr-glass-frost {
     background: rgba(255, 255, 255, 0.14);
   }
 }

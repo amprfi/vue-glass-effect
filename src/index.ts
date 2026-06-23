@@ -5,6 +5,7 @@ export { default as GlassShape } from './components/GlassShape.vue'
 export { default as GlassFilterSvg } from './components/GlassFilterSvg.vue'
 
 export { frostToBlur } from './utils/frost'
+export { useGlassData } from './composables/useGlassData'
 
 export {
   DEFAULT_GLASS_PARAMS,

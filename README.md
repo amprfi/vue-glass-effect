@@ -9,7 +9,7 @@ It uses CSS `backdrop-filter`, SVG filters, and canvas-generated displacement ma
 From GitHub:
 
 ```bash
-npm install github:amprfi/vue-glass-effect#v0.2.0
+npm install github:amprfi/vue-glass-effect#v0.2.1
 ```
 
 Or as a local sibling repo:
@@ -101,6 +101,14 @@ GlassShape only:
 ## Notes
 
 This package is web-only. It relies on browser support for `backdrop-filter` and SVG filters.
+
+The effect is layered for cross-browser robustness: frost (backdrop blur), tint, and edge
+light (specular / inner shadow / inner highlight) all use universally supported CSS, so the
+glass reads correctly everywhere. Refraction and dispersion require `backdrop-filter: url()`,
+which only Chromium currently supports; in Firefox/Safari those two layers silently no-op
+and the rest of the glass keeps rendering. (Like all web glass, no technique can refract
+arbitrary live page content behind a card across all browsers — refraction only shows where
+there is content behind the glass to bend.)
 
 ## License
 
