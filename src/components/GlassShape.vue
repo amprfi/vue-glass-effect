@@ -30,6 +30,8 @@ interface GlassShapeProps {
   baseSrc?: string
   /** Opacity of the base layer, 0–1. Use to restore a source's translucency (e.g. 0.64). */
   baseFill?: number
+  /** Internal render multiplier (maps/mask generated at CSS-size × this). Higher = smoother. */
+  supersample?: number
 }
 
 defineOptions({
@@ -49,6 +51,7 @@ const props = withDefaults(defineProps<GlassShapeProps>(), {
   alt: '',
   baseSrc: undefined,
   baseFill: 1,
+  supersample: undefined,
 })
 
 const resolvedBaseSrc = computed(() => props.baseSrc ?? silhouette.value ?? props.src)
@@ -63,7 +66,7 @@ const filterId = `ampr-glass-shape-filter-${instance?.uid ?? (fallbackId += 1)}`
 const rootRef = ref<HTMLElement | null>(null)
 
 const box = useElementBox(rootRef, 0)
-const { field, silhouette } = useAlphaField(props.src, box)
+const { field, silhouette } = useAlphaField(props.src, box, { supersample: props.supersample })
 
 const ready = computed(
   () => field.value !== null && silhouette.value !== null && box.value.width > 0 && box.value.height > 0,
@@ -80,6 +83,7 @@ const input = computed<GlassDataInput>(() => ({
   overLight: props.overLight,
   field: field.value,
   borderRadius: 0,
+  supersample: props.supersample,
 }))
 
 const data = useGlassData(box, input)

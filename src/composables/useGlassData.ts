@@ -12,6 +12,7 @@ import {
   generateSpecularMap,
 } from '../utils/maps'
 import { frostToBlur } from '../utils/frost'
+import { resolveRenderScale } from '../utils/scale'
 import { DEFAULT_LIGHT_ANGLE, DEFAULT_SPLAY, MIN_FROST_OVER_LIGHT } from '../types'
 import type { MeasuredBox } from '../types'
 
@@ -28,6 +29,8 @@ export interface GlassDataInput {
   field?: FieldSampler | null
   /** Rounded-rect radius used when no explicit field is supplied. */
   borderRadius?: number
+  /** Internal generation multiplier (maps are rendered at CSS-size × this). */
+  supersample?: number
 }
 
 export interface GlassData {
@@ -79,15 +82,20 @@ export function useGlassData(
     }
 
     const i = input.value
-    const w = Math.max(1, Math.round(width))
-    const h = Math.max(1, Math.round(height))
-    const borderRadius = Math.max(0, Math.round(i.borderRadius ?? 0))
+    // Supersample: generate maps at CSS-size × scale so the browser can downscale them
+    // on display (smooth edges/rims). Pixel-space geometry scales by `scale`; the
+    // feDisplacementMap magnitude stays in CSS units (divided back).
+    const { scale, width: w, height: h } = resolveRenderScale(width, height, {
+      supersample: i.supersample,
+    })
+    const borderRadius = Math.max(0, Math.round((i.borderRadius ?? 0) * scale))
 
-    // A rounded-rect field is used for cards; shaped glass supplies its own field.
+    // A rounded-rect field is used for cards; shaped glass supplies its own field
+    // (already in render space, matching w/h).
     const field: FieldSampler = i.field ?? createRoundedRectField(w, h, borderRadius)
 
     const maxDepth = Math.max(1, Math.min(w, h) / 2 - 1)
-    const depth = Math.max(1, Math.min(i.depth, maxDepth))
+    const depth = Math.max(1, Math.min(i.depth * scale, maxDepth))
 
     const { ior, glassThickness } = refractionToMaterialParams(i.refraction)
     const profile = calculateRefractionProfile(glassThickness, depth, ior, 128)
@@ -133,7 +141,9 @@ export function useGlassData(
     return {
       ready: true,
       displacementUrl,
-      scale: maxDisplacement,
+      // feDisplacementMap operates in CSS-pixel filter units, so convert the render-space
+      // max displacement back to CSS units to preserve the intended refraction strength.
+      scale: maxDisplacement / scale,
       specularUrl,
       shadowUrl: innerLightMaps.shadowUrl,
       highlightUrl: innerLightMaps.highlightUrl,

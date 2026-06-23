@@ -16,6 +16,8 @@ interface GlassCardProps {
   lightAngle?: number
   overLight?: boolean
   radius?: number | string
+  /** Internal render multiplier (maps generated at CSS-size × this). Higher = smoother. */
+  supersample?: number
 }
 
 defineOptions({
@@ -32,6 +34,7 @@ const props = withDefaults(defineProps<GlassCardProps>(), {
   lightAngle: DEFAULT_LIGHT_ANGLE,
   overLight: false,
   radius: '1rem',
+  supersample: undefined,
 })
 
 let fallbackId = 0
@@ -52,6 +55,7 @@ const input = computed<GlassDataInput>(() => ({
   overLight: props.overLight,
   field: null,
   borderRadius: box.value.borderRadius,
+  supersample: props.supersample,
 }))
 
 const data = useGlassData(box, input)

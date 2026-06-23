@@ -1,8 +1,16 @@
 import { onBeforeUnmount, shallowRef, watch, type Ref } from 'vue'
 
 import { buildAlphaField, buildSmoothSilhouetteUrl } from '../utils/alphaField'
+import { resolveRenderScale } from '../utils/scale'
 import type { FieldSampler } from '../utils/geometry'
 import type { MeasuredBox } from '../types'
+
+export interface AlphaFieldOptions {
+  /** Alpha threshold above which a pixel counts as "inside" the shape. */
+  threshold?: number
+  /** Internal generation multiplier (field/mask rendered at CSS-size × this). */
+  supersample?: number
+}
 
 export interface AlphaFieldResult {
   /** Signed distance field driving displacement / light maps. */
@@ -71,7 +79,7 @@ function rasterize(image: HTMLImageElement, width: number, height: number): Imag
 export function useAlphaField(
   src: string,
   box: Ref<MeasuredBox>,
-  options: { threshold?: number } = {},
+  options: AlphaFieldOptions = {},
 ): AlphaFieldResult {
   const field = shallowRef<FieldSampler | null>(null)
   const silhouette = shallowRef<string | null>(null)
@@ -82,12 +90,17 @@ export function useAlphaField(
     const token = ++version
 
     try {
+      // Rasterize at the supersampled render resolution so the distance field and mask
+      // are smooth; the browser downscales the mask to the element's CSS size on display.
+      const { width: rw, height: rh } = resolveRenderScale(width, height, {
+        supersample: options.supersample,
+      })
       const image = await loadImage(src)
       if (disposed || token !== version) {
         return
       }
 
-      const imageData = rasterize(image, width, height)
+      const imageData = rasterize(image, rw, rh)
       if (disposed || token !== version || !imageData) {
         return
       }
