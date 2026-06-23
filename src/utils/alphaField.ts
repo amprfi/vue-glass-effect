@@ -155,3 +155,44 @@ export function buildAlphaField(source: AlphaFieldSource, options: AlphaFieldOpt
 
   return field
 }
+
+/**
+ * Renders an opaque silhouette of the source (fully opaque white inside the shape,
+ * transparent outside). Used as the CSS mask for shaped glass so that translucency
+ * in the source (e.g. fill-opacity 0.64) doesn't cap the brightness of layers behind
+ * the mask — the mask clips to full opacity inside the glyph regardless.
+ */
+export function buildSilhouetteUrl(source: AlphaFieldSource, options: AlphaFieldOptions = {}): string {
+  const { data, width, height } = source
+  const threshold = options.threshold ?? 128
+
+  if (typeof document === 'undefined' || width <= 0 || height <= 0) {
+    return ''
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width))
+  canvas.height = Math.max(1, Math.round(height))
+
+  const context = canvas.getContext('2d')
+  if (!context) {
+    return ''
+  }
+
+  const out = context.createImageData(canvas.width, canvas.height)
+
+  for (let i = 0; i < canvas.width * canvas.height; i += 1) {
+    const isInside = (data[i * 4 + 3] ?? 0) > threshold
+
+    if (isInside) {
+      out.data[i * 4] = 255
+      out.data[i * 4 + 1] = 255
+      out.data[i * 4 + 2] = 255
+      out.data[i * 4 + 3] = 255
+    }
+    // Outside pixels are left fully transparent (zeroed by createImageData).
+  }
+
+  context.putImageData(out, 0, 0)
+  return canvas.toDataURL('image/png')
+}

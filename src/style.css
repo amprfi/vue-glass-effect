@@ -52,6 +52,9 @@
    something luminous to sit over. Lives beneath every glass layer. */
 .ampr-glass-shape-base {
   z-index: -7;
+  /* Solid white backing so the glyph silhouette reads fully bright beneath the glass;
+     the opaque silhouette image draws on top of this. Tunable via the CSS var. */
+  background-color: var(--ampr-glass-base-color, #ffffff);
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;

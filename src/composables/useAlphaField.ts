@@ -1,8 +1,15 @@
 import { onBeforeUnmount, shallowRef, watch, type Ref } from 'vue'
 
-import { buildAlphaField } from '../utils/alphaField'
+import { buildAlphaField, buildSilhouetteUrl } from '../utils/alphaField'
 import type { FieldSampler } from '../utils/geometry'
 import type { MeasuredBox } from '../types'
+
+export interface AlphaFieldResult {
+  /** Signed distance field driving displacement / light maps. */
+  field: Ref<FieldSampler | null>
+  /** Opaque silhouette data URL (alpha = 1 inside the shape) for use as the CSS mask. */
+  silhouette: Ref<string | null>
+}
 
 /** Reuse decoded images across components/instances referencing the same source. */
 const imageCache = new Map<string, HTMLImageElement>()
@@ -55,17 +62,19 @@ function rasterize(image: HTMLImageElement, width: number, height: number): Imag
 
 /**
  * Loads an SVG/image source, rasterizes it at the element's current size, and builds
- * an alpha-derived distance field. Rebuilds reactively when the measured box changes.
+ * an alpha-derived distance field plus an opaque silhouette mask. Rebuilds reactively
+ * when the measured box changes.
  *
- * Returns a ref that is `null` until the field is ready (also `null` on SSR or load
- * failure), so consumers can defer rendering the SVG filter until a field exists.
+ * Both refs are `null` until ready (also on SSR or load failure), so consumers can defer
+ * rendering until the field and silhouette exist.
  */
 export function useAlphaField(
   src: string,
   box: Ref<MeasuredBox>,
   options: { threshold?: number } = {},
-): Ref<FieldSampler | null> {
+): AlphaFieldResult {
   const field = shallowRef<FieldSampler | null>(null)
+  const silhouette = shallowRef<string | null>(null)
   let disposed = false
   let version = 0
 
@@ -83,12 +92,12 @@ export function useAlphaField(
         return
       }
 
-      field.value = buildAlphaField(
-        { data: imageData.data, width: imageData.width, height: imageData.height },
-        options,
-      )
+      const source = { data: imageData.data, width: imageData.width, height: imageData.height }
+      field.value = buildAlphaField(source, options)
+      silhouette.value = buildSilhouetteUrl(source, options)
     } catch {
       field.value = null
+      silhouette.value = null
     }
   }
 
@@ -99,6 +108,7 @@ export function useAlphaField(
         void rebuild(value.width, value.height)
       } else {
         field.value = null
+        silhouette.value = null
       }
     },
     { immediate: true, deep: true },
@@ -108,5 +118,5 @@ export function useAlphaField(
     disposed = true
   })
 
-  return field
+  return { field, silhouette }
 }

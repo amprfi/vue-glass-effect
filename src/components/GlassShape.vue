@@ -51,7 +51,7 @@ const props = withDefaults(defineProps<GlassShapeProps>(), {
   baseFill: 1,
 })
 
-const resolvedBaseSrc = computed(() => props.baseSrc ?? props.src)
+const resolvedBaseSrc = computed(() => props.baseSrc ?? silhouette.value ?? props.src)
 const baseStyle = computed(() => ({
   backgroundImage: `url("${resolvedBaseSrc.value}")`,
   opacity: props.baseFill,
@@ -63,7 +63,11 @@ const filterId = `ampr-glass-shape-filter-${instance?.uid ?? (fallbackId += 1)}`
 const rootRef = ref<HTMLElement | null>(null)
 
 const box = useElementBox(rootRef, 0)
-const field = useAlphaField(props.src, box)
+const { field, silhouette } = useAlphaField(props.src, box)
+
+const ready = computed(
+  () => field.value !== null && silhouette.value !== null && box.value.width > 0 && box.value.height > 0,
+)
 
 const input = computed<GlassDataInput>(() => ({
   refraction: props.refraction,
@@ -82,13 +86,16 @@ const data = useGlassData(box, input)
 
 const rootStyle = computed(() => {
   const size = typeof props.size === 'number' ? `${props.size}px` : props.size
+  // The mask uses the opaque silhouette (not the source) so translucency in the source
+  // can't cap the brightness of the layers behind the mask.
+  const maskSrc = silhouette.value ?? props.src
 
   return {
     width: size,
     height: size,
     '--ampr-glass-filter': `url(#${filterId})`,
     '--ampr-glass-frost': data.value.frostFilter,
-    '--ampr-shape-mask': `url("${props.src}")`,
+    '--ampr-shape-mask': `url("${maskSrc}")`,
   }
 })
 
@@ -110,7 +117,7 @@ const highlightStyle = computed(() => ({ backgroundImage: `url("${data.value.hig
     :aria-label="alt"
   >
     <GlassFilterSvg
-      v-if="data.ready"
+      v-if="data.ready && ready"
       :filter-id="filterId"
       :width="box.width"
       :height="box.height"
