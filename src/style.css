@@ -48,6 +48,15 @@
   pointer-events: none;
 }
 
+/* Luminous base layer (shaped glass only): fills the silhouette bright so the glass has
+   something luminous to sit over. Lives beneath every glass layer. */
+.ampr-glass-shape-base {
+  z-index: -7;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 /* Tier 1 — frost: universally supported backdrop blur. */
 .ampr-glass-frost {
   z-index: -6;

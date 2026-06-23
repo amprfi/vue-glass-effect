@@ -22,6 +22,14 @@ interface GlassShapeProps {
   size?: number | string
   /** Accessible label, since the visual is decorative glass. */
   alt?: string
+  /**
+   * Luminous base layer rendered behind the glass. Glass doesn't emit light, so over a
+   * dark/flat backdrop the silhouette would render dark; a base gives the glass something
+   * bright to sit over. Defaults to `src` (the shape paints itself as its own base).
+   */
+  baseSrc?: string
+  /** Opacity of the base layer, 0–1. Use to restore a source's translucency (e.g. 0.64). */
+  baseFill?: number
 }
 
 defineOptions({
@@ -39,7 +47,15 @@ const props = withDefaults(defineProps<GlassShapeProps>(), {
   overLight: false,
   size: 32,
   alt: '',
+  baseSrc: undefined,
+  baseFill: 1,
 })
+
+const resolvedBaseSrc = computed(() => props.baseSrc ?? props.src)
+const baseStyle = computed(() => ({
+  backgroundImage: `url("${resolvedBaseSrc.value}")`,
+  opacity: props.baseFill,
+}))
 
 let fallbackId = 0
 const instance = getCurrentInstance()
@@ -102,6 +118,9 @@ const highlightStyle = computed(() => ({ backgroundImage: `url("${data.value.hig
       :scale="data.scale"
       :dispersion="data.dispersion"
     />
+
+    <!-- Luminous base: the glyph paints itself bright beneath the glass. -->
+    <div class="ampr-glass-layer ampr-glass-shape-base" :style="baseStyle" />
 
     <div class="ampr-glass-layer ampr-glass-frost" />
     <div class="ampr-glass-layer ampr-glass-refract" />
