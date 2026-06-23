@@ -1,10 +1,17 @@
-import { roundedRectSdf } from './geometry'
+import { createRoundedRectField, type FieldSampler } from './geometry'
+import { DEFAULT_SPLAY, SPLAY_SPREAD_FACTOR } from '../types'
 
 export interface EdgeMapOptions {
   width: number
   height: number
   borderRadius: number
   depth: number
+  /**
+   * Optional signed-distance field describing the glass silhouette.
+   * When omitted, a rounded-rectangle field (using borderRadius) is used.
+   * Shaped glass (e.g. a logo glyph) supplies an alpha-derived field.
+   */
+  field?: FieldSampler | null
 }
 
 export interface DisplacementMapOptions extends EdgeMapOptions {
@@ -14,6 +21,27 @@ export interface DisplacementMapOptions extends EdgeMapOptions {
 
 export interface LightMapOptions extends EdgeMapOptions {
   lightAngle: number
+  /** Figma "Splay": how far the projected light spreads, 0–100. */
+  splay?: number
+}
+
+/**
+ * Resolves the effective distance field, falling back to a rounded rectangle.
+ */
+function resolveField(options: EdgeMapOptions, width: number, height: number): FieldSampler {
+  if (options.field) {
+    return options.field
+  }
+
+  return createRoundedRectField(width, height, options.borderRadius)
+}
+
+/**
+ * Width of the light band as splay widens it from the base edge depth.
+ */
+function lightBandDepth(depth: number, splay: number): number {
+  const splayNorm = Math.max(0, Math.min(100, splay)) / 100
+  return depth * (1 + splayNorm * SPLAY_SPREAD_FACTOR)
 }
 
 export interface InnerLightMaps {
@@ -69,6 +97,7 @@ export function generateDisplacementMap(options: DisplacementMapOptions): string
 
   const { canvas, image } = buffer
   const { data } = image
+  const field = resolveField(options, width, height)
   const depth = Math.max(1, options.depth)
   const profileLength = options.profile.length
   const maxDisplacement = Math.max(1, Math.abs(options.maxDisplacement))
@@ -82,7 +111,7 @@ export function generateDisplacementMap(options: DisplacementMapOptions): string
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const { dist, nx, ny } = roundedRectSdf(x, y, width, height, options.borderRadius)
+      const { dist, nx, ny } = field(x, y)
 
       // Keep a 1px outer feather so the displaced edge anti-aliases cleanly.
       if (dist > 1) {
@@ -128,21 +157,23 @@ export function generateSpecularMap(options: LightMapOptions): string {
 
   const { canvas, image } = buffer
   const { data } = image
+  const field = resolveField(options, width, height)
   const depth = Math.max(1, options.depth)
+  const lightDepth = lightBandDepth(depth, options.splay ?? DEFAULT_SPLAY)
   const light = [Math.cos(options.lightAngle), Math.sin(options.lightAngle)] as const
 
   data.fill(0)
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const { dist, nx, ny } = roundedRectSdf(x, y, width, height, options.borderRadius)
+      const { dist, nx, ny } = field(x, y)
 
       if (dist > 1) {
         continue
       }
 
       const fromEdge = -dist
-      if (fromEdge >= depth) {
+      if (fromEdge >= lightDepth) {
         continue
       }
 
@@ -151,8 +182,10 @@ export function generateSpecularMap(options: LightMapOptions): string {
         continue
       }
 
+      // Light spreads from the edge inward up to `lightDepth` (splay widens this reach).
+      const t = Math.min(1, Math.max(0, fromEdge / lightDepth))
+      const edgeFalloff = Math.sqrt(Math.max(0, 1 - (1 - t) ** 2))
       const directionalStrength = Math.abs(nx * light[0] + -ny * light[1])
-      const edgeFalloff = Math.sqrt(Math.max(0, 1 - (1 - Math.max(0, fromEdge)) ** 2))
       const alpha = Math.round(255 * Math.pow(directionalStrength * edgeFalloff, 1.5) * opacity)
       const dataIndex = (y * width + x) * 4
 
@@ -182,7 +215,9 @@ export function generateInnerLightMaps(options: LightMapOptions): InnerLightMaps
 
   const shadowData = shadowBuffer.image.data
   const highlightData = highlightBuffer.image.data
+  const field = resolveField(options, width, height)
   const depth = Math.max(1, options.depth)
+  const lightDepth = lightBandDepth(depth, options.splay ?? DEFAULT_SPLAY)
   const light = [Math.cos(options.lightAngle), Math.sin(options.lightAngle)] as const
 
   shadowData.fill(0)
@@ -190,18 +225,18 @@ export function generateInnerLightMaps(options: LightMapOptions): InnerLightMaps
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const { dist, nx, ny } = roundedRectSdf(x, y, width, height, options.borderRadius)
+      const { dist, nx, ny } = field(x, y)
 
       if (dist > 1) {
         continue
       }
 
       const fromEdge = -dist
-      if (fromEdge < 0 || fromEdge >= depth) {
+      if (fromEdge < 0 || fromEdge >= lightDepth) {
         continue
       }
 
-      const fade = 1 - fromEdge / depth
+      const fade = 1 - fromEdge / lightDepth
       const opacity = Math.max(0, Math.min(1, fade * fade))
       const directional = nx * light[0] + ny * light[1]
       const dataIndex = (y * width + x) * 4

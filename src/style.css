@@ -56,3 +56,61 @@
     background: rgba(255, 255, 255, 0.14);
   }
 }
+
+/*
+ * Shaped glass (e.g. a logo glyph). The glass treatment (backdrop blur + tint + rim
+ * light) is generated from an alpha distance field and then clipped to the source's
+ * own alpha via a CSS mask, so the silhouette of the glass equals the silhouette of
+ * the source SVG/image.
+ */
+.ampr-glass-shape {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+  isolation: isolate;
+  background: transparent;
+  transform: translateZ(0);
+  -webkit-mask-image: var(--ampr-shape-mask);
+  mask-image: var(--ampr-shape-mask);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.ampr-glass-shape::before,
+.ampr-glass-shape::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ampr-glass-shape::before {
+  z-index: -1;
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset -2px -2px 10px -2px rgba(255, 255, 255, 0.5),
+    inset 2px 2px 10px -2px rgba(0, 0, 0, 0.1);
+}
+
+.ampr-glass-shape--over-light::before {
+  background-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset -2px -2px 10px -2px rgba(255, 255, 255, 0.65),
+    inset 2px 2px 10px -2px rgba(0, 0, 0, 0.12);
+}
+
+.ampr-glass-shape::after {
+  z-index: -2;
+  backdrop-filter: var(--ampr-glass-filter);
+  -webkit-backdrop-filter: var(--ampr-glass-filter);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ampr-glass-shape::after {
+    background: rgba(255, 255, 255, 0.14);
+  }
+}

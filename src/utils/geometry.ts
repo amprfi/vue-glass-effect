@@ -1,11 +1,18 @@
 export interface SdfSample {
-  /** Signed distance to rounded rectangle boundary. Negative values are inside. */
+  /** Signed distance to a boundary. Negative values are inside the shape. */
   dist: number
   /** Outward normal x component at the nearest boundary point. */
   nx: number
   /** Outward normal y component at the nearest boundary point. */
   ny: number
 }
+
+/**
+ * Samples a signed distance field at local pixel coordinates.
+ * Cards use a rounded-rect field; shaped glass (e.g. logos) use an alpha-derived field.
+ * Both return the same `{ dist, nx, ny }` contract so the map generators are agnostic.
+ */
+export type FieldSampler = (x: number, y: number) => SdfSample
 
 export interface RefractionMaterialParams {
   ior: number
@@ -117,4 +124,15 @@ export function roundedRectSdf(px: number, py: number, width: number, height: nu
   }
 
   return { dist: dy - safeRadius, nx: 0, ny: y >= 0 ? 1 : -1 }
+}
+
+/**
+ * Builds a FieldSampler backed by a rounded rectangle, for rectangular glass cards.
+ */
+export function createRoundedRectField(
+  width: number,
+  height: number,
+  radius: number,
+): FieldSampler {
+  return (x, y) => roundedRectSdf(x, y, width, height, radius)
 }

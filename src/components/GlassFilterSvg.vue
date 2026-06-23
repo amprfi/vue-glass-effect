@@ -4,13 +4,15 @@ import { computed } from 'vue'
 import {
   calculateRefractionProfile,
   refractionToMaterialParams,
+  type FieldSampler,
 } from '../utils/geometry'
 import {
   generateDisplacementMap,
   generateInnerLightMaps,
   generateSpecularMap,
 } from '../utils/maps'
-import { DEFAULT_GLASS_PARAMS, DEFAULT_LIGHT_ANGLE } from '../types'
+import { frostToBlur } from '../utils/frost'
+import { DEFAULT_GLASS_PARAMS, DEFAULT_LIGHT_ANGLE, DEFAULT_SPLAY, MIN_FROST_OVER_LIGHT } from '../types'
 
 interface GlassFilterSvgProps {
   filterId: string
@@ -22,8 +24,11 @@ interface GlassFilterSvgProps {
   frost?: number
   lightIntensity?: number
   dispersion?: number
+  splay?: number
   lightAngle?: number
   overLight?: boolean
+  /** Optional silhouette field; when omitted a rounded rectangle is used. */
+  field?: FieldSampler | null
 }
 
 const props = withDefaults(defineProps<GlassFilterSvgProps>(), {
@@ -32,8 +37,10 @@ const props = withDefaults(defineProps<GlassFilterSvgProps>(), {
   frost: DEFAULT_GLASS_PARAMS.frost,
   lightIntensity: DEFAULT_GLASS_PARAMS.lightIntensity,
   dispersion: DEFAULT_GLASS_PARAMS.dispersion,
+  splay: DEFAULT_SPLAY,
   lightAngle: DEFAULT_LIGHT_ANGLE,
   overLight: false,
+  field: null,
 })
 
 const SPECULAR_SATURATION = 4
@@ -58,6 +65,7 @@ const filterData = computed(() => {
     height,
     borderRadius,
     depth,
+    field: props.field ?? undefined,
     profile,
     maxDisplacement,
   })
@@ -68,6 +76,8 @@ const filterData = computed(() => {
     height,
     borderRadius,
     depth: specularDepth,
+    field: props.field ?? undefined,
+    splay: props.splay,
     lightAngle: props.lightAngle,
   })
 
@@ -76,8 +86,12 @@ const filterData = computed(() => {
     height,
     borderRadius,
     depth: Math.min(Math.max(1, depth * 1.6), Math.min(width, height) / 2),
+    field: props.field ?? undefined,
+    splay: props.splay,
     lightAngle: props.lightAngle,
   })
+
+  const frostScale = props.overLight ? Math.max(MIN_FROST_OVER_LIGHT, props.frost) : props.frost
 
   return {
     width,
@@ -87,7 +101,7 @@ const filterData = computed(() => {
     shadowUrl: innerLightMaps.shadowUrl,
     highlightUrl: innerLightMaps.highlightUrl,
     scale: maxDisplacement * SCALE_RATIO,
-    frost: props.overLight ? Math.max(1, props.frost) : props.frost,
+    frost: frostToBlur(frostScale),
     lightIntensity: props.overLight ? Math.max(0.8, props.lightIntensity) : props.lightIntensity,
     dispersion: Math.max(0, Math.min(100, props.dispersion)),
   }
