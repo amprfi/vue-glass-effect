@@ -157,15 +157,13 @@ export function buildAlphaField(source: AlphaFieldSource, options: AlphaFieldOpt
 }
 
 /**
- * Renders an opaque silhouette of the source (fully opaque white inside the shape,
- * transparent outside). Used as the CSS mask for shaped glass so that translucency
- * in the source (e.g. fill-opacity 0.64) doesn't cap the brightness of layers behind
- * the mask — the mask clips to full opacity inside the glyph regardless.
+ * Renders a smooth (anti-aliased) silhouette of the shape for use as the CSS mask.
+ * Each pixel's alpha follows the signed distance field — `clamp(0.5 - dist, 0, 1)` — so the
+ * edge feathers cleanly over ~1px along the true boundary instead of hard-cutting at an
+ * alpha threshold (which looks jagged on small glyphs). The interior is fully opaque,
+ * so translucency in the source can't cap the brightness of layers behind the mask.
  */
-export function buildSilhouetteUrl(source: AlphaFieldSource, options: AlphaFieldOptions = {}): string {
-  const { data, width, height } = source
-  const threshold = options.threshold ?? 128
-
+export function buildSmoothSilhouetteUrl(field: FieldSampler, width: number, height: number): string {
   if (typeof document === 'undefined' || width <= 0 || height <= 0) {
     return ''
   }
@@ -180,17 +178,20 @@ export function buildSilhouetteUrl(source: AlphaFieldSource, options: AlphaField
   }
 
   const out = context.createImageData(canvas.width, canvas.height)
+  const w = canvas.width
+  const h = canvas.height
 
-  for (let i = 0; i < canvas.width * canvas.height; i += 1) {
-    const isInside = (data[i * 4 + 3] ?? 0) > threshold
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const { dist } = field(x, y)
+      const alpha = Math.max(0, Math.min(1, 0.5 - dist))
+      const idx = (y * w + x) * 4
 
-    if (isInside) {
-      out.data[i * 4] = 255
-      out.data[i * 4 + 1] = 255
-      out.data[i * 4 + 2] = 255
-      out.data[i * 4 + 3] = 255
+      out.data[idx] = 255
+      out.data[idx + 1] = 255
+      out.data[idx + 2] = 255
+      out.data[idx + 3] = Math.round(alpha * 255)
     }
-    // Outside pixels are left fully transparent (zeroed by createImageData).
   }
 
   context.putImageData(out, 0, 0)

@@ -49,11 +49,11 @@
 }
 
 /* Luminous base layer (shaped glass only): fills the silhouette bright so the glass has
-   something luminous to sit over. Lives beneath every glass layer. */
+   something luminous to sit over. Sits ABOVE the backdrop (frost/refract) layers so the
+   bright body dominates the dark backdrop; the glass sheen (tint/rim/highlight) renders
+   on top of it. Tunable backing color via the CSS var. */
 .ampr-glass-shape-base {
-  z-index: -7;
-  /* Solid white backing so the glyph silhouette reads fully bright beneath the glass;
-     the opaque silhouette image draws on top of this. Tunable via the CSS var. */
+  z-index: -5;
   background-color: var(--ampr-glass-base-color, #ffffff);
   background-position: center;
   background-repeat: no-repeat;
@@ -62,14 +62,14 @@
 
 /* Tier 1 — frost: universally supported backdrop blur. */
 .ampr-glass-frost {
-  z-index: -6;
+  z-index: -7;
   backdrop-filter: var(--ampr-glass-frost);
   -webkit-backdrop-filter: var(--ampr-glass-frost);
 }
 
 /* Tier 3 — refraction + dispersion via SVG filter. Chromium only; no-ops elsewhere. */
 .ampr-glass-refract {
-  z-index: -5;
+  z-index: -6;
   backdrop-filter: var(--ampr-glass-filter);
   -webkit-backdrop-filter: var(--ampr-glass-filter);
 }

@@ -1,6 +1,6 @@
 import { onBeforeUnmount, shallowRef, watch, type Ref } from 'vue'
 
-import { buildAlphaField, buildSilhouetteUrl } from '../utils/alphaField'
+import { buildAlphaField, buildSmoothSilhouetteUrl } from '../utils/alphaField'
 import type { FieldSampler } from '../utils/geometry'
 import type { MeasuredBox } from '../types'
 
@@ -93,8 +93,9 @@ export function useAlphaField(
       }
 
       const source = { data: imageData.data, width: imageData.width, height: imageData.height }
-      field.value = buildAlphaField(source, options)
-      silhouette.value = buildSilhouetteUrl(source, options)
+      const builtField = buildAlphaField(source, options)
+      field.value = builtField
+      silhouette.value = buildSmoothSilhouetteUrl(builtField, imageData.width, imageData.height)
     } catch {
       field.value = null
       silhouette.value = null
